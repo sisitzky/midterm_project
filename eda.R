@@ -1,6 +1,8 @@
 library(tidyverse)
 library(ggplot2)
 library(lme4)
+library(jtools)
+library(lmerTest)
 
 
 # read data and remove blank row
@@ -17,7 +19,8 @@ df_no_2020 <- df %>%
 # exit velocity plot
 ggplot(df_no_2020, aes(x = log(exit_velocity_avg), y = log(b_babip), color = as.factor(year))) +
   geom_point() +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Exit Velocity", color = "Year", caption = "Figure 1")
 
 # creating launch angle subset
 la_df_no_2020 <- df_no_2020 %>%
@@ -48,8 +51,10 @@ ggplot(df_no_2020, aes(x = log(iz_contact_percent), y = log(b_babip), color = as
   geom_point() +
   geom_smooth(method = "lm", se = FALSE)
 
-model <- lmer(b_babip ~ sprint_speed + exit_velocity_avg + launch_angle_avg + sweet_spot_percent + (1 + exit_velocity_avg|year) + (1 + launch_angle_avg|year) + (1 + sweet_spot_percent|year), data = df_no_2020)
+model <- lmer(b_babip ~ sprint_speed + exit_velocity_avg + launch_angle_avg + sweet_spot_percent + (1 + exit_velocity_avg|year) + (1 + launch_angle_avg|year) + (1 + sweet_spot_percent|year), data = df_no_2020, REML = FALSE)
 summary(model)
+summ(model)
+ranova(model)
 
 
 
