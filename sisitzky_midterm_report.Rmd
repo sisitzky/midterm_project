@@ -1,7 +1,7 @@
 ---
 title: "Statcast Analysis - MA678 Midterm Project Report"
 author: "Andrew Sisitzky"
-date: "10 December 2021"
+date: "12 December 2021"
 output: pdf_document
 ---
 
@@ -158,9 +158,18 @@ Looking at the residuals vs fitted plot, we see that there are no clear patterns
 
 __DISCUSSION__
 
-
+Having validated the model, we can then look deeper into the results. As previously discussed, a distinct variation among the coefficients of the random effects can be seen. While building models for each year individually may not be helpful in predicting future data, it can help us better understand the effects that the change composition of the baseballs used by the MLB have had on certain metrics measured by Statcast and the way those changes relate to the prediction of BABIP. 
+In terms of the metrics used for prediction, we can see how each of these variables are affecting BABIP. As was expected, higher sprint speed tends to increase BABIP, as do higher exit velocities and sweet spot percentages. On the other hand, as batters have higher launch angles, they tend to have higher BABIP. 
+A shortcoming of this model is its prediction using launch angle. Even though the negative correlation suggests that a lower launch angle will result in a higher BABIP, this does not mean that a 0 or negative average launch angle will result in a higher BABIP. The sweet spot of launch angle, as defined by the MLB, is between 8 and 35 degrees. Therefore players with these average launch angles will likely have the highest BABIP, as shown by the inclusion of sweet spot percentage in this model. 
+For further research, it would be helpful to look into the exact changes made by Major League Baseball to the baseballs and their known effects on all of the relevant Statcast metrics. However, this data is not public so this would not be possible at the moment. With this knowledge, we could better understand how this data on each player should be expected to vary from year to year and teams could make better projections for their players' stats.
 
 __CITATIONS__
+
+Brown, M. (2021, December 8). Major League Baseball's integrity is at stake as study finds inconsistencies with the ball. Forbes. Retrieved December 11, 2021, from https://www.forbes.com/sites/maurybrown/2021/12/06/major-league-baseballs-integrity-at-stake-due-to-inconsistencies-with-the-ball/?sh=5948e1917015.
+
+Statcast leaderboard. baseballsavant.com. (n.d.). Retrieved December 11, 2021, from https://baseballsavant.mlb.com/statcast_leaderboard. 
+
+Sullivan, B. (2021, December 2). News the MLB used 2 types of baseballs in 2021 throws curveball into labor talks. NPR. Retrieved December 11, 2021, from https://www.npr.org/2021/12/01/1060579444/news-the-mlb-used-2-types-of-baseballs-in-2021-could-throw-curveball-into-labor. 
 
 \newpage
 
