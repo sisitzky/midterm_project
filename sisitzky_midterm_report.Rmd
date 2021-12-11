@@ -11,6 +11,7 @@ library(ggplot2)
 library(lme4)
 library(jtools)
 library(lmerTest)
+library(car)
 
 df <- read.csv("stats.csv")
 df <- df[,-38]
@@ -18,11 +19,13 @@ df$b_babip <- (df$b_total_hits - df$b_home_run) / (df$b_ab - df$b_home_run - df$
 
 df_no_2020 <- df %>%
                 subset(year != '2020')
+
+model <- lmer(b_babip ~ sprint_speed + exit_velocity_avg + launch_angle_avg + sweet_spot_percent + (1 + exit_velocity_avg|year) + (1 + launch_angle_avg|year) + (1 + sweet_spot_percent|year), data = df_no_2020, REML = FALSE)
 ```
 
 __ABSTRACT__
 
-In 2015, Major League Baseball (MLB) implemented the Statcast system with the purpose of measuring previously unquantifiable aspects of the game. A significant and unprecedented aspect of Statcast is its ability to measure statistics related to the quality of contact a batter makes with the baseball. In recent seasons, however, reports have surfaced about the MLB making changes to the composition of the baseballs used in their games. With the shifting weight, size, and density of the baseball over the previous six years of competetion, it would be helpful to account for these year to year changes when using quality of contact Statcast stats to predict traditional baseball statistics. In this report, I will use a multilevel model to predict BABIP (batting average on balls in play) using Statcast data from 2015 to 2021. To address the issue of the changes in the ball, I will be grouping by year and using varying slopes and varying intercepts for all statistics that could be affected by these changes.
+In 2015, Major League Baseball (MLB) implemented the Statcast system with the purpose of measuring previously unquantifiable aspects of the game. A significant and unprecedented aspect of Statcast is its ability to measure statistics related to the quality of contact a batter makes with the baseball. In recent seasons, however, reports have surfaced about the MLB making changes to the composition of the baseballs used in their games. With the shifting weight, size, and density of the baseball over the previous six years of competetion, it would be helpful to account for these year to year changes when using quality of contact Statcast stats to predict traditional baseball statistics. In this report, I will use a multilevel model to predict BABIP (batting average on balls in play) using Statcast data from 2015 to 2021. To address the issue of the changes in the ball, I will be grouping by year and using varying slopes and varying intercepts for all statistics that could be affected by these changes. The model found that Statcast metrics can adequately predict BABIP and that the year to year changes in the balls can be accounted for using a mixed effects model.
 
 
 __INTRODUCTION__
@@ -33,7 +36,7 @@ __METHOD__
 
 __Data Processing__
 
-The data that I used for this project was gathered from Baseball Savant's custom leaderboards. I made the decision to not include the data from the shortened 2020 season as the distribution of some statistics during this season appeared to differ greatly from the others I observed. Therefore, the final dataset contained 835 observations of 38 variables, 4 of which would remain in my final model. The variables included in the BABIP model are listed in the table below.
+The data that I used for this project was gathered from Baseball Savant's custom leaderboards. I made the decision to not include the data from the shortened 2020 season as the distribution of some statistics during this season appeared to differ greatly from the other years I observed. Therefore, the final dataset contained 835 observations of 38 variables, 4 of which would remain in my final model. The variables included in the BABIP model are listed in the table below.
 
 +-------------------+-----------------------------------------------------------+
 |  Statistic        | Description                                               |
@@ -55,13 +58,148 @@ Before getting further into the model itself, I will take a step back to show my
 
 __Exploratory Data Analysis__
 
+In an effort to identify correlation between BABIP and the statcast metrics, I created numerous scatterplots of this variable and the quality of contact statistics. To condense the data, I took the logs of both variables for each plot.
+
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.height=3, fig.width=5}
 ggplot(df_no_2020, aes(x = log(exit_velocity_avg), y = log(b_babip), color = as.factor(year))) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "BABIP vs. Exit Velocity", color = "Year", caption = "Figure 1") +
-  xlab("log(exit velocity)") +
+  labs(title = "BABIP vs. Exit Velocity Average", color = "Year", caption = "Figure 1") +
+  xlab("log(Exit Velocity Average)") +
   ylab("log(BABIP)") + 
   theme(plot.title = element_text(hjust = 0.5, size = 10))
 ```
+
+As seen above in figure 1, there appears to be a slightly positive correlation between average exit velocity and BABIP. While this positive correlation holds true for all groups, the slopes and intercepts for each group appear to vary slightly.
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.height=3, fig.width=5}
+la_df_no_2020 <- df_no_2020 %>%
+                  filter(launch_angle_avg > .5)
+
+ggplot(la_df_no_2020, aes(x = log(launch_angle_avg), y = log(b_babip), color = as.factor(year))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "BABIP vs. Launch Angle Average", color = "Year", caption = "Figure 2") +
+  xlab("log(Launch Angle Average)") +
+  ylab("log(BABIP)") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10))
+```
+
+In figure 2, we see a plot of launch angle vs BABIP on the log scale. Similar to the exit velocity plot, slight variation in the slopes and intercepts of each group can be seen. In this case we see a rather clear negative correlation between the two variables. This is to be expected as players with higher average launch angles tend to hit more fly balls, which have a much lower probability of leading to hits as ground balls or line drives. 
+
+Not displayed among these graphs are the final two variables, sweet spot percentage and sprint speed. Sweet spot percentage, which is calculated using launch angle, shows a similar trend of varying slopes and intercepts and this will be accounted for in the model. Sprint speed, which has been determined to be a viable predictor of BABIP, will not have a varying slope or intercept in the model as it is not a quality of contact statistic. The year to year changes in the construction of the baseball would not have an effect on the measure of sprint speed, therefore I will not consider random effects for this variable. 
+
+__Model Fitting__
+
+As previously mentioned, the model that I chose to fit on the data was a multilevel model. From my exploratory data analysis, I have concluded that varying slopes and varying intercepts for the quality of contact statistics is logical as there is slight variation in the data among the years considered. The final model is printed below.
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE}
+model <- lmer(b_babip ~ sprint_speed + exit_velocity_avg + launch_angle_avg + 
+            sweet_spot_percent + (1+exit_velocity_avg|year) + (1+launch_angle_avg|year) +
+            (1+sweet_spot_percent|year), data = df_no_2020, REML = FALSE)
+```
+
+After fitting this model, the following fixed effects were returned. ($\alpha$ = 0.05)
+
++-------------------+----------+------------+-----------+-----------+-------------+
+|                   | Estimate | Std. Error |    df     |   t value |   Pr(>|t|)  |
++===================+==========+============+===========+===========+=============+
+| (Intercept)       | -0.2306  | 0.045200   |  27.16    | -5.106    | 2.25e-05 ***|
++-------------------+----------+------------+-----------+-----------+-------------+
+| sprint_speed      | 0.0074   | 0.000599   |  831.8    |  12.398   |  < 2e-16 ***|
++-------------------+----------+------------+-----------+-----------+-------------+
+|exit_velocity_avg  | 0.0025   | 0.000420   |  18.93    |  6.058    | 8.06e-06 ***|
++-------------------+----------+------------+-----------+-----------+-------------+
+| launch_angle_avg  | -0.0045  | 0.000219   |  27.36    |  -20.688  | < 2e-16 *** |
++-------------------+----------+------------+-----------+-----------+-------------+
+|sweet_spot_percent | 0.0049   | 0.000330   |  19.71    |  14.726   | 4.26e-12 ***|
++-------------------+----------+------------+-----------+-----------+-------------+
+
+__RESULTS__
+
+__Model Coefficients__
+
+The model returned the following coefficients for each year.
+
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+|                   |  (Intercept)  |     sprint_speed  |exit_velocity     | launch_angle     |sweet_spot        |
++===================+===============+===================+==================+==================+==================+
+| 2015              | -0.1789903    | 0.00742076        |  0.002375287     | -0.004519693     | 0.004593839      |
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+| 2016              | -0.1658082    | 0.00742076        |  0.002331760     | -0.004523871     | 0.004699817      |
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+| 2017              | -0.1911803    | 0.00742076        |  0.002415534     | -0.004560878     | 0.004693095      |
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+| 2018              | -0.2844739    | 0.00742076        |  0.002723599     | -0.004493228     | 0.005151112      |
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+| 2019              | -0.2309935    | 0.00742076        |  0.002546998     | -0.004509899     | 0.004945222      |
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+| 2021              | -0.3324017    | 0.00742076        |  0.002881859     | -0.004519432     | 0.005058736      |
++-------------------+---------------+-------------------+------------------+------------------+------------------+
+
+Analyzing the above coefficients, we first notice a large shift in the data beginning in 2017 and high variation in the intercept and exit velocity continues on after this point. In 2017, a record number of home runs were hit with 6,105 being hit across all 30 teams. For the previous 20 years, the number of home runs hit across the league had hovered between 4000 and the low 5000s. This led to speculation that the balls were being altered to allow for more offense in the game, specifically more home runs. The varying numbers for exit velocity suggest that the baseballs may have been being altered to affect the velocity off the bat (matching the speculation of many). The correlation between exit velocity and BABIP is likely why we can see the effects of these changes in this multilevel model. 
+
+The formula that this model suggests should be used to predict BABIP using the 2017 data is printed below.
+
+_BABIP_ = -0.1911803 + 0.00742076 * _sprint_speed_ + 0.002415534 * _exit_velocity_ + -0.004560878 * _launch_angle_ + 0.004693095 * _sweet_spot_
+
+\newpage
+
+__Model Validation__
+
+```{r, figures-side, fig.show="hold", out.width="50%", echo=FALSE}
+plot(model, col = "black")
+qqnorm(resid(model))
+qqline(resid(model))
+```
+
+Looking at the residuals vs fitted plot, we see that there are no clear patterns in the residuals and they are rather evenly distributed around 0. This suggests that the assumption that the relationship is linear is reasonable and that the variance of the error terms are equal. In the normal QQ plot, the points follow the line relatively well, suggesting that the assumtion of normality is valid. 
+
+__DISCUSSION__
+
+
+
+__CITATIONS__
+
+\newpage
+
+__APPENDIX__
+
+_Model Coefficients_
+
+```{r, echo=FALSE}
+coef(model)[1]
+```
+
+_Random Effects of Model_
+
+```{r, echo=FALSE}
+ranef(model)
+```
+
+_Fixed Effects of Model_
+
+```{r, echo=FALSE}
+fixef(model)
+```
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.align='center', fig.height=3, fig.width=5}
+ggplot(df_no_2020, aes(x = log(sweet_spot_percent), y = log(b_babip), color = as.factor(year))) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "BABIP vs. Sweet Spot Percentage", color = "Year") +
+  xlab("log(Sweet Spot Percentage)") +
+  ylab("log(BABIP)") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 10))
+```
+
+
+
+
+
+
+
+
 
